@@ -1,0 +1,93 @@
+<!-- templates/admin/userprofile_changelist.html -->
+{% extends "admin/change_list.html" %}
+
+{% block content %}
+    {{ block.super }}
+    <h2>Current Weight and BMI</h2>
+    <ul>
+        {% for profile in user_profiles %}
+            <li>{{ profile.first_name }} {{ profile.last_name }}: 
+                Weight: {{ profile.latest_weight|floatformat:2 }} pounds, 
+                BMI: {{ profile.latest_bmi|floatformat:2 }} 
+                ({{ profile.get_latest_status_display }})
+            </li>
+        {% endfor %}
+    </ul>
+
+    <h2>Weight and BMI Evolution</h2>
+    <canvas id="weightChart" width="400" height="200"></canvas>
+    <canvas id="bmiChart" width="400" height="200"></canvas>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const weightData = {
+            labels: [{% for indicator in health_indicators %}'{{ indicator.date_entry }}',{% endfor %}],
+            datasets: [{
+                label: 'Weight (kg)',
+                data: [{% for indicator in health_indicators %}{{ indicator.weight }},{% endfor %}],
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1,
+                fill: false
+            }]
+        };
+
+        const bmiData = {
+            labels: [{% for indicator in health_indicators %}'{{ indicator.date_entry }}',{% endfor %}],
+            datasets: [{
+                label: 'BMI',
+                data: [{% for indicator in health_indicators %}{{ indicator.bmi }},{% endfor %}],
+                borderColor: 'rgba(153, 102, 255, 1)',
+                borderWidth: 1,
+                fill: false
+            }]
+        };
+
+        const configWeight = {
+            type: 'line',
+            data: weightData,
+            options: {
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'month'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        };
+
+        const configBMI = {
+            type: 'line',
+            data: bmiData,
+            options: {
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'month'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        };
+
+        var weightChart = new Chart(
+            document.getElementById('weightChart'),
+            configWeight
+        );
+
+        var bmiChart = new Chart(
+            document.getElementById('bmiChart'),
+            configBMI
+        );
+    </script>
+{% endblock %}
+
+
