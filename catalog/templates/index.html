@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Assistant</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+</head>
+
+<style>
+        body {
+            background-color: #F2F7FB;
+            font-family: sans-serif, Arial;
+            font-size: 12px;
+            margin: 10px;
+        }
+        
+        script {
+        margin: 10px 20px 10px;
+        }
+        
+        form {
+             margin: 20px 40px 10px;
+             font-family: sans-serif, Arial;
+             font-size: 12px;
+             color: #4C4C4E;
+             background-color: #F2F7FB;
+        }
+        .dashboard-container {
+            margin: 20px 40px 10px;
+        }
+        .dashboard-box {
+          background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            text-align: center;
+            margin: 10px 10px 10px;
+            width: 200px;
+            height: 100px;
+            display: inline-block;
+        }
+        
+        .dashboard-box .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #104862;
+        }
+        
+        .dashboard-box .heading {
+            font-size: 12px;
+            font-weight: bold;
+            color: #888;
+        }
+
+        h1, h2, h3 {
+            margin: 20px 50px 10px; 
+            font-weight: bold;
+        }
+
+        h1 {
+            font-size: 2.0em; 
+            color: #4C4C4E;
+        }
+
+        h2 {
+            font-size: 1.3em; 
+            color: #68696D;
+        }
+
+        h3 {
+            font-size: 1.5em; 
+            color: #7f8c8d; 
+        }
+    </style>
+<body>
+    <h1>Health Assistant Dashboard</h1>
+
+    <h2>Welcome, {% for profile in user_profiles %}{{ profile.first_name}} {{ profile.last_name}}!{% endfor %}</h2>
+    
+    <div class="dashboard-container">
+        <div class="dashboard-box" style="margin: 20px 10px 20px;">
+            <div class="heading"> WEIGHT </div>
+            <div class="value">{% for profile in user_profiles %}{{ profile.latest_weight|floatformat:2 }}{% endfor %}</div>
+            <div class="num"></div>
+        </div>
+        <div class="dashboard-box" style="margin: 10px 10px 10px;">
+            <div class="heading"> BMI </div>
+            <div class="value">{% for profile in user_profiles %}{{ profile.latest_bmi|floatformat:2 }}{% endfor %}</div>
+        </div>
+        <div class="dashboard-box">
+            <div class="heading"> GOAL </div>
+            <div class="value">{% for profile in user_profiles %}{{ profile.weight_goal|floatformat:0}}{% endfor %}</div>
+        </div>
+        <div class="dashboard-box">
+            <div class="heading"> STATUS BMI</div>
+            <div class="value">{% for profile in user_profiles %}
+                               {% if profile.latest_status == "n" %}
+                               Normal
+                               {% elif profile.latest_status == "o" %}
+                               Overweight
+                               {% elif profile.latest_status == "u" %}
+                               Underweight
+                               {% else %}
+                               Obese
+                               {% endif %}
+                               {% endfor %}
+            </div>  
+        </div>
+         <div class="dashboard-box">
+            <div class="heading"> AVG (LAST 7) </div>
+            <div class="value">{{latest_seven.weight__avg|stringformat:".2f"}}</div>
+    </div>
+
+    <div class="row">
+        <div class="col-8">
+            <canvas id="weightChart" style="margin: 20px 20px 0;"></canvas>
+        </div>
+        <div class="col-4">
+            <canvas id="nutritionChart"></canvas>
+        </div>
+        <div class="col-8">
+            <canvas id="bmiChart" style="margin: 20px 20px 0;"></canvas>
+        </div>
+        <div class="col-4">
+            <form id="health-form" method="post">
+              {% csrf_token %}
+              {{ form.as_p }}
+            <button id="update-button" class="btn btn-primary" style="font-size: 12px; padding: 5px 10px; background-color: #3E82B3; border: none;">Update</button>
+            </form>
+        </div>
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.0.2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script>
+    const healthIndicators = [
+            {% for indicator in health_indicators %}
+            {
+                date_entry: '{{ indicator.date_entry }}',
+                weight: {{ indicator.weight }},
+                bmi: {{ indicator.bmi }},
+                status: '{{ indicator.status }}'
+            },
+            {% endfor %}
+      ];
+      
+      const drawShadedAreaPlugin = {
+      id: 'drawShadedArea',
+      afterDatasetsDraw(chart) {
+        const {ctx, chartArea: {top, bottom}, scales: {x, y}, data: {datasets}} = chart;
+        const dataset = datasets[0].data;
+
+        const xPosValues = [];
+        const yPosPlus2Values = [];
+        const yPosMinus2Values = [];
+
+        dataset.forEach((value, index) => {
+            const xPos = x.getPixelForValue(new Date(chart.data.labels[index]));
+            const yPos = y.getPixelForValue(value);
+            const yPosPlus2 = y.getPixelForValue(value + 1);
+            const yPosMinus2 = y.getPixelForValue(value - 1);
+
+            xPosValues.push(xPos);
+            yPosPlus2Values.push(yPosPlus2);
+            yPosMinus2Values.push(yPosMinus2);
+        });
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(62, 130, 179, 0.3)';
+
+        // Draw the shaded area
+        ctx.beginPath();
+        ctx.moveTo(xPosValues[0], yPosPlus2Values[0]);
+
+        // Draw the upper boundary
+        for (let i = 1; i < xPosValues.length; i++) {
+            ctx.lineTo(xPosValues[i], yPosPlus2Values[i]);
+        }
+
+        // Draw the lower boundary
+        for (let i = xPosValues.length -1; i >= 0; i--) {
+            ctx.lineTo(xPosValues[i], yPosMinus2Values[i]);
+        }
+
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+        }
+       };
+    
+      const plugin = {
+            id: 'BackgroundColor',
+            beforeDraw: (chart, args, options) => {
+                const {ctx} = chart;
+                ctx.save();
+                ctx.globalCompositeOperation = 'destination-over';
+                ctx.fillStyle = options.color || '#F2F7FB';
+                ctx.fillRect(0, 0, chart.width, chart.height);
+                ctx.restore();
+                }
+            };
+            
+
+        // Weight Chart
+        const weightCtx = document.getElementById('weightChart').getContext('2d');
+        new Chart(weightCtx, {
+            type: 'line',
+            data: {
+                labels: [{% for indicator in health_indicators %}'{{ indicator.date_entry | date:"Y-m-d" }}',{% endfor %}],
+                datasets: [{
+                    label: 'Weight (lbs)',
+                    data: [{% for indicator in health_indicators %}{{ indicator.weight }},{% endfor %}],
+                    backgroundColor: 'rgba(1, 97, 171, 1)',
+                    borderColor: '#3E82B3',
+                    tension: 0.3,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                elements: {
+                    point:{
+                        radius: 0
+                    }
+                },
+                plugins: {
+                  legend: {
+                    display: false
+                  },
+                  title: {
+                    display: true,
+                    position: 'top',
+                    align: 'center',
+                    text: 'Weight (lbs) evolution, 2024',
+                    font: {
+                      weight: 'normal',
+                      size: 14,
+                      style: 'italic'
+                      }
+                    },
+                  },
+                responsive: true,
+                maintainAspectRatio: true,
+                //aspectRatio: 1,
+                scales: {
+                  x: {
+                      ticks: {
+                         display: true,
+                         maxRotation: 0,
+                         stepSize: 6
+                         },
+                      type: 'time',
+                      time: {
+                         displayFormats: {
+                            month: 'DDD MMM'
+                         }
+                         },
+                      grid: {
+                        display: false   
+                        }
+                     },    
+                    y: {
+                        beginAtZero: false
+                    }
+                  }
+                },
+            plugins: [drawShadedAreaPlugin],
+        });
+
+        // BMI Chart
+        const bmiCtx = document.getElementById('bmiChart').getContext('2d');
+        const labels = [{% for indicator in health_indicators %}'{{ indicator.date_entry | date:"Y-m-d" }}',{% endfor %}];
+        const bmiData = [{% for indicator in health_indicators %}{{ indicator.bmi|floatformat:2}},{% endfor %}];
+        
+        // Custom plugin to draw background colors based on BMI thresholds
+        const thresholdPlugin = {
+            id: 'thresholdPlugin',
+            beforeDatasetsDraw(chart) {
+                const { ctx, chartArea: { top, bottom, left, right }, scales: { y } } = chart;
+                ctx.save();
+
+                // Underweight
+                ctx.fillStyle = 'rgba(171, 171, 171, 0.2)';
+                ctx.fillRect(left, y.getPixelForValue(0), right - left, y.getPixelForValue(18.5) - y.getPixelForValue(0));
+
+                // Normal weight
+                ctx.fillStyle = 'rgba(171, 171, 171, 0.3)';
+                ctx.fillRect(left, y.getPixelForValue(18.5), right - left, y.getPixelForValue(24.99999) - y.getPixelForValue(18.5));
+
+                // Overweight
+                ctx.fillStyle = 'rgba(171, 171, 171, 0.4)';
+                ctx.fillRect(left, y.getPixelForValue(25), right - left, y.getPixelForValue(29.99999) - y.getPixelForValue(25));
+
+                // Obese
+                ctx.fillStyle = 'rgba(171, 171, 171, 0.6)';
+                ctx.fillRect(left, y.getPixelForValue(30), right - left, y.getPixelForValue(y.max) - y.getPixelForValue(30));
+
+                ctx.restore();
+            }
+        };
+
+        new Chart(bmiCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Body Mass Index (BMI)',
+                    data: bmiData,
+                    fill: 'origin',
+                    backgroundColor: 'rgba(6, 99, 160, 0.5)',
+                    borderColor: 'rgba(6, 99, 160, 1)',
+                    borderWidth: 2,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                elements: {
+                    point:{
+                        radius: 0
+                    }
+                },
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                    display: false
+                     },
+                    title: {
+                    display: true,
+                    position: 'top',
+                    align: 'center',
+                    text: 'Bodxy Mass Index (BMI) evolution, 2024',
+                    font: {
+                      weight: 'normal',
+                      size: 14,
+                      style: 'italic'
+                      }
+                    },
+                    thresholdPlugin: true
+                },
+                scales: {
+                    x: {
+                      ticks: {
+                         maxRotation: 0,
+                         maxTicksLimit: 12
+                         },
+                      type: 'time',
+                      time: {
+                         displayFormats: {
+                            month: 'DDD MMM'
+                         }
+                         },
+                      grid: {
+                        display: false   
+                        }
+                     },
+                    y: {
+                        beginAtZero: false,
+                        min: 0,
+                        max: 35,
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            },
+            plugins: [thresholdPlugin],
+                     
+        });
+        </script>
+        
+        <script>
+        {% if macronutrient_percentages %}
+        const macronutrientPercentages = {
+            'Protein': {{ macronutrient_percentages.Protein|floatformat:2 }},
+            'Fat': {{ macronutrient_percentages.Fat|floatformat:2 }},
+            'Carbs': {{ macronutrient_percentages.Carbs|floatformat:2 }},
+            'Fibre': {{ macronutrient_percentages.Fibre|floatformat:2 }}
+        };
+        
+        const macronutrientArray = Object.entries(macronutrientPercentages);
+        macronutrientArray.sort((a, b) => b[1] - a[1]);
+        const sortedMacronutrientPercentages = Object.fromEntries(macronutrientArray);
+                
+        // Nutrition Chart
+        const nutritionCtx = document.getElementById('nutritionChart').getContext('2d');
+        const nutritionData = {
+            labels: Object.keys(sortedMacronutrientPercentages),
+            datasets: [{
+                data: Object.values(sortedMacronutrientPercentages),
+                backgroundColor: [
+                    'rgba(6, 99, 160, 1)',
+                    'rgba(6, 99, 160, 0.7)',
+                    'rgba(6, 99, 160, 0.5)',
+                    'rgba(6, 99, 160, 0.3)'
+                ],
+                borderColor: [
+                    'rgba(255, 255, 255, 1)',
+                    'rgba(255, 255, 255, 1)',
+                    'rgba(255, 255, 255, 1)',
+                    'rgba(255, 255, 255, 1)'
+                ],
+                borderWidth: 2
+            }]
+        };
+
+        new Chart(nutritionCtx, {
+            type: 'pie',
+            data: nutritionData,
+            options: {
+              plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed !== null) {
+                                    label += context.parsed.toFixed(2) + '%';
+                                }
+                                return label;
+                              }
+                          }
+                     },
+                    legend: {
+                    display: true,
+                    position: 'bottom'
+                     },
+                    title: {
+                    display: true,
+                    position: 'top',
+                    align: 'center',
+                    text: 'Macronutrient Distribution for {{ selected_date }}',
+                    font: {
+                      weight: 'normal',
+                      size: 14,
+                      style: 'italic'
+                      }
+                    }
+                },
+             },
+            plugins: [],
+            
+        });
+    {% endif %}
+    </script>
+</body>
+</html>

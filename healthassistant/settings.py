@@ -154,6 +154,7 @@ STATIC_URL = '/static/'
 ## (replace the string below with your own site URL):
 CSRF_TRUSTED_ORIGINS = ['https://natanaelsantos.pythonanywhere.com']
 
+
 # Static file serving.
 # https://whitenoise.readthedocs.io/en/stable/django.html#add-compression-and-caching-support
 STORAGES = {
@@ -162,3 +163,5 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
+
+
