@@ -151,7 +151,7 @@ STATIC_URL = '/static/'
 
 ## For example, for a site URL is at 'web-production-3640.up.railway.app'
 ## (replace the string below with your own site URL):
-CSRF_TRUSTED_ORIGINS = ['https://hamishwillee.pythonanywhere.com']
+CSRF_TRUSTED_ORIGINS = ['https://natanaelsantos.pythonanywhere.com']
 
 # During development/for this tutorial you can instead set just the base URL
 # CSRF_TRUSTED_ORIGINS = ['https://*.pythonanywhere.com']
