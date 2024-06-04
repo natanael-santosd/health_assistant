@@ -1,0 +1,195 @@
+<!-- templates/admin/userprofile_changelist.html -->
+{% extends "admin/change_list.html" %}
+
+{% block content %}
+    {{ block.super }}
+    <h2>Current Weight and BMI</h2>
+    <ul>
+        {% for profile in user_profiles %}
+            <li>{{ profile.first_name }} {{ profile.last_name }}: 
+                Weight: {{ profile.latest_weight|floatformat:2 }} pounds, 
+                BMI: {{ profile.latest_bmi|floatformat:2 }} 
+                ({{ profile.get_latest_status_display }})
+            </li>
+        {% endfor %}
+    </ul>
+
+    <h2>Weight and BMI Evolution</h2>
+    <ul>
+    
+    <div>
+      <canvas id="myChart"></canvas>
+      <canvas id="myChart2"></canvas>
+      <canvas id="myChart3" width="200" height="200"></canvas>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.0.2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    
+    <script>
+      const ctx = document.getElementById('myChart');
+      
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [{% for indicator in health_indicators %}'{{ indicator.date_entry }}',{% endfor %}],
+          datasets: [{
+            label: 'Weight (lbs)',
+            data: [{% for indicator in health_indicators %}{{ indicator.weight }},{% endfor %}],
+            // bordercolor: 'rgb(75, 192, 192)',
+            tension: 0.3,
+            borderWidth: 1.8
+          }]
+        },
+        options: {
+          scales: {
+            //x: {
+                //type: 'time',
+                //time: {
+                    //unit: 'day',
+                    //displayFormats: {
+                        //month: 'MMM',
+                        //day: 'DD'
+                    //},
+                    //tooltipFormat: 'll'
+                //}
+            //},
+            y: {
+              beginAtZero: false
+              }
+            }
+          }
+        });
+
+    const ctx2 = document.getElementById('myChart2').getContext('2d');
+
+    const labels = [{% for indicator in health_indicators %}'{{ indicator.date_entry }}',{% endfor %}];
+    const bmiData = [{% for indicator in health_indicators %}{{ indicator.bmi }},{% endfor %}];
+
+    // Custom plugin to draw background colors based on BMI thresholds
+    const thresholdPlugin = {
+        id: 'thresholdPlugin',
+        beforeDatasetsDraw(chart) {
+            const { ctx, chartArea: { top, bottom, left, right }, scales: { y } } = chart;
+
+            ctx.save();
+            
+            ctx.fillStyle = 'rgba(173, 171, 173, 0.1)';
+            ctx.fillRect(left, y.getPixelForValue(0), right - left, y.getPixelForValue(18.5) - y.getPixelForValue(0));
+
+            // normal weight (BMI <= 25)
+            ctx.fillStyle = 'rgba(173, 171, 173, 0.3)';
+            ctx.fillRect(left, y.getPixelForValue(18.5), right - left, y.getPixelForValue(24.99999) - y.getPixelForValue(18.5));
+
+            // Draw red background for overweight (BMI > 25)
+            ctx.fillStyle = 'rgba(173, 171, 173, 0.5)';
+            ctx.fillRect(left, y.getPixelForValue(25), right - left, y.getPixelForValue(29.99999) - y.getPixelForValue(25));
+            
+            ctx.fillStyle = 'rgba(192, 0, 0, 0.3)';
+            ctx.fillRect(left, y.getPixelForValue(30), right - left, y.getPixelForValue(y.max) - y.getPixelForValue(30));
+            
+
+            ctx.restore();
+        }
+    };
+
+    new Chart(ctx2, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Body Mass Index (BMI)',
+                data: bmiData,
+                //fill: 'origin',
+                //backgroundColor: 'rgba(25, 107, 36, 0.3)',
+                //borderColor: 'rgba(25, 107, 36, 1)',
+                borderWidth: 1.5,
+            }]
+        },
+          options: {
+              plugins: {
+                  annotation: {
+                      common: {
+                      drawTime: 'beforeDraw'
+                      },
+                      annotations: {
+                          line1: {
+                              type: 'line',
+                              borderColor: 'green',
+                              borderDash: [6, 6],
+                              borderWidth: 1,
+                              //xMin: 0, 
+                              //xMax: 40,
+                              yMin: 18.5, 
+                              yMax: 18.5, 
+                              //xScaleID: 'x',
+                              yScaleID: 'y',
+                              label: {
+                                content: 'Under',
+                                backgroundColor: 'lightGreen',
+                                borderRadius: 0,
+                                color: 'green',
+                                enabled: true,
+                                position: 'center',
+                                layoutPosition: 'bottom'
+                                }
+                          },
+                          line2: {
+                              type: 'line',
+                              borderColor: 'green',
+                              borderDash: [6, 6],
+                              borderWidth: 1,
+                              //xMin: 0, 
+                              //xMax: 40,
+                              yMin: 24.9, 
+                              yMax: 24.9, 
+                              //xScaleID: 'x',
+                              yScaleID: 'y',
+                              label: {
+                                content: 'Normal',
+                                backgroundColor: 'lightGreen',
+                                borderRadius: 0,
+                                color: 'green',
+                                enabled: true,
+                                position: 'start'}
+                          },
+                          line3: {
+                              type: 'line',
+                              borderColor: 'rgb(192, 0, 0)',
+                              borderDash: [6, 6],
+                              borderWidth: 1,
+                              //xMin: 0, 
+                              //xMax: 40,
+                              yMin: 29.9, 
+                              yMax: 29.9, 
+                              //xScaleID: 'x',
+                              yScaleID: 'y',
+                              label: {
+                                content: 'Over',
+                                backgroundColor: 'rgb(255, 0, 0)',
+                                borderRadius: 0,
+                                color: 'rgb(0, 0, 0)',
+                                enabled: true,
+                                position: 'start'}
+                          },
+                          
+                      }
+                  },  
+                thresholdPlugin: true,
+              },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    min: 0,
+                    max: 35
+                }
+            }
+        },
+        plugins: [thresholdPlugin]
+        
+     });
+     
+    </script>
+      
+{% endblock %}
